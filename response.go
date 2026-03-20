@@ -47,10 +47,28 @@ type Response struct {
 // This is typically used in middleware scenarios.
 //
 // Example:
+//
 //	return Response{}.Next()
 func (r Response) Next() Response {
 	r.next = true
 	return r
+}
+
+// JSON creates a Response with a JSON payload.
+//
+// The provided data will be assigned to the Data field,
+// and should be serializable by the converter (usually to JSON).
+//
+// Example:
+//
+//	return Response{}.JSON(map[string]string{
+//	    "message": "ok",
+//	})
+func (r Response) JSON(data any) Response {
+	return Response{
+		StatusCode: r.Status(),
+		Data:       data,
+	}
 }
 
 // GoNext returns whether the handler chain should continue.
@@ -90,6 +108,7 @@ func (r Response) Status() int {
 // Useful for simple responses without a body.
 //
 // Example:
+//
 //	return SendStatus(404)
 func SendStatus(statusCode int) Response {
 	return Response{StatusCode: statusCode}
