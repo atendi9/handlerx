@@ -25,6 +25,70 @@ func TestAtendi9Context(t *testing.T) {
 			t.Fail()
 		}
 	})
+
+	t.Run("delegates Header correctly", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.Header.Set("Authorization", "Bearer token123")
+		req.Header.Set("X-Custom", "custom-value")
+
+		ctx := Atendi9Context{Context: testHTTPContext{Req: req, Res: httptest.NewRecorder()}}
+
+		if got := ctx.Header("Authorization"); got != "Bearer token123" {
+			t.Errorf("Header(Authorization): got %q, want 'Bearer token123'", got)
+		}
+		if got := ctx.Header("X-Custom"); got != "custom-value" {
+			t.Errorf("Header(X-Custom): got %q, want 'custom-value'", got)
+		}
+	})
+
+	t.Run("delegates Headers correctly", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		for i := 0; i < 20; i++ {
+			key := "X-Header-" + string(rune('A'+i))
+			req.Header.Set(key, "value-"+string(rune('A'+i)))
+		}
+
+		ctx := Atendi9Context{Context: testHTTPContext{Req: req, Res: httptest.NewRecorder()}}
+
+		headers := ctx.Headers()
+		for i := 0; i < 20; i++ {
+			key := "X-Header-" + string(rune('A'+i))
+			vals, ok := headers[key]
+			if !ok || len(vals) == 0 {
+				t.Errorf("missing header %s in Headers() map", key)
+			}
+		}
+	})
+
+	t.Run("value passed to handler preserves headers", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.Header.Set("Authorization", "Bearer test-token")
+		req.Header.Set("X-Request-Id", "req-123")
+
+		innerCtx := testHTTPContext{Req: req, Res: httptest.NewRecorder()}
+		a9ctx := Atendi9Context{Context: innerCtx}
+
+		// Simulate passing through handler chain (value semantics)
+		var handler Handler = func(c Context) Response {
+			auth := c.Header("Authorization")
+			reqId := c.Header("X-Request-Id")
+			if auth != "Bearer test-token" {
+				return Response{Err: nil, Data: "auth header lost: " + auth, StatusCode: 500}
+			}
+			if reqId != "req-123" {
+				return Response{Err: nil, Data: "request-id header lost: " + reqId, StatusCode: 500}
+			}
+			return Response{Data: "ok"}
+		}
+
+		res := handler(a9ctx)
+		if res.StatusCode == 500 {
+			t.Fatalf("headers lost in handler chain: %v", res.Data)
+		}
+		if res.Data != "ok" {
+			t.Fatalf("unexpected response: %v", res.Data)
+		}
+	})
 }
 
 type testHTTPContext struct {
