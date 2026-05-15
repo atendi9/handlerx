@@ -87,17 +87,16 @@ func (r Response) GoNext() bool {
 
 // Status returns a valid HTTP status code.
 //
-// If the defined StatusCode is less than or equal to 200,
-// it defaults to http.StatusOK (200).
+// If the StatusCode is unset (its zero value, 0) or falls outside the
+// valid HTTP range [100, 599], it defaults to http.StatusOK (200).
 //
-// This ensures that invalid or unset status codes
-// do not break the response flow.
+// Any explicitly set code within the valid range is returned as-is,
+// so 1xx informational codes and an intentional 200 are both preserved.
 func (r Response) Status() int {
 	statusCode := r.StatusCode
-	initialStatus := http.StatusOK
 
-	if statusCode <= initialStatus {
-		statusCode = initialStatus
+	if statusCode < 100 || statusCode > 599 {
+		return http.StatusOK
 	}
 
 	return statusCode
