@@ -20,11 +20,34 @@ func TestResponseStatus_Custom(t *testing.T) {
 	}
 }
 
-func TestResponseStatus_InvalidLow(t *testing.T) {
-	r := Response{StatusCode: 100}
+func TestResponseStatus_Informational(t *testing.T) {
+	// 1xx codes are valid and must be preserved, not clamped to 200.
+	for _, code := range []int{100, 101, 103} {
+		r := Response{StatusCode: code}
+
+		if r.Status() != code {
+			t.Fatalf("expected informational status %d to be preserved, got %d", code, r.Status())
+		}
+	}
+}
+
+func TestResponseStatus_ExplicitOK(t *testing.T) {
+	// An explicitly set 200 must be returned as-is.
+	r := Response{StatusCode: 200}
 
 	if r.Status() != 200 {
-		t.Fatalf("expected fallback status 200, got %d", r.Status())
+		t.Fatalf("expected status 200, got %d", r.Status())
+	}
+}
+
+func TestResponseStatus_OutOfRange(t *testing.T) {
+	// Codes outside [100, 599] are invalid and fall back to 200.
+	for _, code := range []int{-1, 99, 600, 1000} {
+		r := Response{StatusCode: code}
+
+		if r.Status() != 200 {
+			t.Fatalf("expected fallback status 200 for invalid code %d, got %d", code, r.Status())
+		}
 	}
 }
 
