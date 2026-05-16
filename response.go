@@ -54,10 +54,13 @@ func (r Response) Next() Response {
 	return r
 }
 
-// JSON creates a Response with a JSON payload.
+// JSON sets the JSON payload on the response.
 //
-// The provided data will be assigned to the Data field,
-// and should be serializable by the converter (usually to JSON).
+// The provided data is assigned to the Data field; all other fields
+// already set on the receiver (StatusCode, Err, FilePath, next) are
+// preserved. The StatusCode is normalized to a valid value via Status.
+//
+// The provided data should be serializable by the converter (usually to JSON).
 //
 // Example:
 //
@@ -65,10 +68,9 @@ func (r Response) Next() Response {
 //	    "message": "ok",
 //	})
 func (r Response) JSON(data any) Response {
-	return Response{
-		StatusCode: r.Status(),
-		Data:       data,
-	}
+	r.StatusCode = r.Status()
+	r.Data = data
+	return r
 }
 
 // GoNext returns whether the handler chain should continue.

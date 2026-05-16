@@ -1,6 +1,7 @@
 package handlerx
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -108,5 +109,34 @@ func TestResponseJSON_DefaultStatusFallback(t *testing.T) {
 
 	if res.StatusCode != 200 {
 		t.Fatalf("expected default status 200, got %d", res.StatusCode)
+	}
+}
+
+func TestResponseJSON_PreservesOtherFields(t *testing.T) {
+	// JSON must not silently drop next, Err or FilePath already set
+	// on the receiver.
+	wantErr := errors.New("boom")
+	r := Response{
+		StatusCode: 201,
+		Err:        wantErr,
+		FilePath:   "/tmp/file.txt",
+	}.Next()
+
+	res := r.JSON(map[string]string{"message": "ok"})
+
+	if !res.GoNext() {
+		t.Fatal("expected GoNext() to be preserved through JSON()")
+	}
+	if res.Err != wantErr {
+		t.Fatalf("expected Err to be preserved, got %v", res.Err)
+	}
+	if res.FilePath != "/tmp/file.txt" {
+		t.Fatalf("expected FilePath to be preserved, got %q", res.FilePath)
+	}
+	if res.StatusCode != 201 {
+		t.Fatalf("expected status 201 to be preserved, got %d", res.StatusCode)
+	}
+	if _, ok := res.Data.(map[string]string); !ok {
+		t.Fatalf("expected Data to be set, got %T", res.Data)
 	}
 }
